@@ -36,7 +36,7 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     return background
 
 
-def setText(timg,color,alignment):
+def setText(timg, color, alignment):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
     draw.text((80, videoHeight - 55), description[idx], font=font, fill=color, align=alignment)
@@ -67,6 +67,7 @@ def fadeOut(timg, frm):
         dst = cv2.addWeighted(timg, fOut, timg, fOut, 0)
         frm.append(dst)
 
+
 videoWidth = 640
 videoHeight = 360
 
@@ -76,13 +77,16 @@ expandHeight = 480
 initWidth = 0
 initHeight = 0
 
-path = '/Users/imac/project/video_maker/images'
+# VIDEO_MAKER_PATH = '/Users/imac/project/video_maker/'
+VIDEO_MAKER_PATH = '/Data/video_maker/'
+
+path = '%simages' % VIDEO_MAKER_PATH
 paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
 
-logoPath = '/Users/imac/project/video_maker/logo'
+logoPath = '%slogo' % VIDEO_MAKER_PATH
 logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
 
-introPath = '/Users/imac/project/video_maker/assets/adop-intro-1080.jpg'
+introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
 
 introImg = cv2.imread(introPath)
 introImg = cv2.resize(introImg, (videoWidth, videoHeight))
@@ -90,17 +94,18 @@ introImg = cv2.resize(introImg, (videoWidth, videoHeight))
 logoImg = cv2.imread(logoPath[0])
 logoImg = cv2.resize(logoImg, (40, 40))
 
-with open('/Users/imac/project/video_maker/description/info.json') as json_file:
+infoJsonPath = '%sdescription/info.json' % VIDEO_MAKER_PATH
+with open(infoJsonPath) as json_file:
     vInfoData = json.load(json_file)
 
-pathOut = '/Users/imac/project/video_maker/video/news.mp4'
+pathOut = '%svideo/news.mp4' % VIDEO_MAKER_PATH
 fps = 15
 frame_array = []
 
 description = vInfoData['description']
 fontType = vInfoData['font']
 
-fontpath = "/Users/imac/project/video_maker/fonts/%s.otf" % fontType
+fontpath = "%sfonts/%s.otf" % VIDEO_MAKER_PATH, fontType
 font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
 for idx, path in enumerate(paths):
@@ -148,7 +153,7 @@ for idx, path in enumerate(paths):
         videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
 
         croppedImg = videoImg[0:videoHeight, 0:videoWidth]
-        croppedImg = setText(croppedImg,vInfoData['font_color'],vInfoData['alignment'])
+        croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'])
 
         height, width, layers = croppedImg.shape
         size = (width, height)
@@ -176,4 +181,5 @@ for i in range(len(frame_array)):
 
 out.release()
 
-os.system("ffmpeg -i /Users/imac/project/video_maker/video/news.mp4 -vcodec libx264 /Users/imac/project/video_maker/video/final.mp4")
+finalMakeTask = "ffmpeg -i %svideo/news.mp4 -vcodec libx264 %svideo/final.mp4" % VIDEO_MAKER_PATH, VIDEO_MAKER_PATH
+os.system(finalMakeTask)
