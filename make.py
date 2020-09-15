@@ -12,6 +12,7 @@ import re
 import os
 import numpy
 import cv2
+import json
 import time
 from PIL import ImageFont, ImageDraw, Image
 
@@ -35,10 +36,11 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     return background
 
 
-def setText(timg):
+def setText(timg,color,alignment):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
-    draw.text((80, videoHeight - 55), description[idx], font=font, fill=(255, 255, 255, 100))
+    draw.text((80, videoHeight - 55), description[idx], font=font, fill=color, align=alignment)
+    draw.text
     timg = numpy.array(img_pil)
     return timg
 
@@ -74,29 +76,32 @@ expandHeight = 480
 initWidth = 0
 initHeight = 0
 
-path = './images'
-paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".jpg$", i)]
+path = '/Users/imac/project/video_maker/images'
+paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
 
-logoPath = './adop_logo.png'
-introPath = './assets/adop-intro-1080.jpg'
+logoPath = '/Users/imac/project/video_maker/logo'
+logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
+
+introPath = '/Users/imac/project/video_maker/assets/adop-intro-1080.jpg'
 
 introImg = cv2.imread(introPath)
 introImg = cv2.resize(introImg, (videoWidth, videoHeight))
 
-logoImg = cv2.imread(logoPath)
+logoImg = cv2.imread(logoPath[0])
 logoImg = cv2.resize(logoImg, (40, 40))
-pathOut = './news.mp4'
+
+with open('/Users/imac/project/video_maker/description/info.json') as json_file:
+    vInfoData = json.load(json_file)
+
+pathOut = '/Users/imac/project/video_maker/video/news.mp4'
 fps = 15
 frame_array = []
-fontpath = "fonts/adop.ttf"
-font = ImageFont.truetype(fontpath, 20)
 
-description = ['밥블레스유2 김숙vs제시vs박나래, 즉석 팔씨름 대회의 승자는?', '두번째 소식은 무엇?', '세번째 소식은 또 무엇?']
+description = vInfoData['description']
+fontType = vInfoData['font']
 
-fadeIn(introImg, frame_array)
-
-for i in range(0, 15):
-    frame_array.append(introImg)
+fontpath = "/Users/imac/project/video_maker/fonts/%s.otf" % fontType
+font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
 for idx, path in enumerate(paths):
     img = cv2.imread(path)
@@ -143,13 +148,13 @@ for idx, path in enumerate(paths):
         videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
 
         croppedImg = videoImg[0:videoHeight, 0:videoWidth]
-        croppedImg = setText(croppedImg)
+        croppedImg = setText(croppedImg,vInfoData['font_color'],vInfoData['alignment'])
 
         height, width, layers = croppedImg.shape
         size = (width, height)
 
         if idx == 0 and i == 1:
-            fadeOut(introImg, frame_array)
+            # fadeOut(introImg, frame_array)
             fadeIn(croppedImg, frame_array)
         elif idx != 0 and i == 1:
             fadeIn(croppedImg, frame_array)
@@ -159,7 +164,8 @@ for idx, path in enumerate(paths):
         if i == expandHeight - videoHeight:
             fadeOut(croppedImg, frame_array)
 
-    # frame_array.append()
+fadeIn(introImg, frame_array)
+fadeOut(introImg, frame_array)
 
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 out = cv2.VideoWriter(pathOut, fourcc, fps, size)
@@ -170,4 +176,4 @@ for i in range(len(frame_array)):
 
 out.release()
 
-os.system("ffmpeg -i news.mp4 -vcodec libx264 news2.mp4")
+os.system("ffmpeg -i /Users/imac/project/video_maker/video/news.mp4 -vcodec libx264 /Users/imac/project/video_maker/video/final.mp4")
