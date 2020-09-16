@@ -85,6 +85,7 @@ paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png
 
 logoPath = '%slogo' % VIDEO_MAKER_PATH
 logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
+paths.sort()
 
 introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
 
