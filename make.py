@@ -105,7 +105,7 @@ frame_array = []
 description = vInfoData['description']
 fontType = vInfoData['font']
 
-fontpath = "%sfonts/%s.otf" % VIDEO_MAKER_PATH, fontType
+fontpath = "%sfonts/%s.otf" % (VIDEO_MAKER_PATH, fontType)
 font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
 for idx, path in enumerate(paths):
@@ -181,7 +181,7 @@ for i in range(len(frame_array)):
 
 out.release()
 
-finalMakeTask = "ffmpeg -i %svideo/news.mp4 -vcodec libx264 %svideo/final.mp4" % VIDEO_MAKER_PATH, VIDEO_MAKER_PATH
+finalMakeTask = "ffmpeg -i %svideo/news.mp4 -vcodec libx264 %svideo/final.mp4" % (VIDEO_MAKER_PATH, VIDEO_MAKER_PATH)
 os.system(finalMakeTask)
 finalVideoTask = "chmod 777 %svideo/final.mp4" % VIDEO_MAKER_PATH
 os.system(finalVideoTask)
