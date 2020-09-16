@@ -183,3 +183,5 @@ out.release()
 
 finalMakeTask = "ffmpeg -i %svideo/news.mp4 -vcodec libx264 %svideo/final.mp4" % VIDEO_MAKER_PATH, VIDEO_MAKER_PATH
 os.system(finalMakeTask)
+finalVideoTask = "chmod 777 %svideo/final.mp4" % VIDEO_MAKER_PATH
+os.system(finalVideoTask)
