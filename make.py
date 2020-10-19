@@ -20,6 +20,7 @@ import pymysql # mysql 다운르도
 
 import pymysql
 import socket
+import shutil
 
 testVideo = 1
 
@@ -103,6 +104,13 @@ def makeArticleVideo(data):
     global testVideo
     strTestVideo = str(testVideo)
 
+    if( os.path.isfile("/Users/admin/git/video_maker/images/1.jpg")):
+        os.remove("/Users/admin/git/video_maker/images/1.jpg")
+        os.remove("/Users/admin/git/video_maker/images/2.jpg")
+        os.remove("/Users/admin/git/video_maker/images/3.jpg")
+        os.remove("/Users/admin/git/video_maker/images/4.jpg")
+        os.remove("/Users/admin/git/video_maker/images/5.jpg")
+
 #이미지 저장
     img_idx = 1
     for img_url in data["images"]:
@@ -130,12 +138,12 @@ def makeArticleVideo(data):
 
     path = '%simages' % VIDEO_MAKER_PATH
     paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
-    print("image paths = ", paths)
+    # print("image paths = ", paths)
 
     logoPath = '%slogo' % VIDEO_MAKER_PATH
     logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
     paths.sort()
-    print("logo images = ", logoPath)
+    # print("logo images = ", logoPath)
 
     introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
 
@@ -241,6 +249,10 @@ def makeArticleVideo(data):
     out.release()
     # print("strTestVideo = "+strTestVideo)
 
+    if (os.path.isfile("/Users/admin/git/video_maker/video") ):
+        shutil.rmtree("/Users/admin/git/video_maker/video") # 디렉토리 + 안에 있는 파일도 삭제
+        os.mkdir("/Users/admin/git/video_maker/video")
+
     finalMakeTask = "ffmpeg -i %svideo/news%s.mp4 -vcodec libx264 %svideo/final%s.mp4" % (VIDEO_MAKER_PATH, strTestVideo, VIDEO_MAKER_PATH, strTestVideo)
     os.system(finalMakeTask)
     finalVideoTask = "chmod 777 %svideo/final%s.mp4" % (VIDEO_MAKER_PATH , strTestVideo )
@@ -268,47 +280,67 @@ sql_getRange = """
             SELECT * FROM insight.i_recommend_video_site WHERE del_yn = 'N'
             """
 cur.execute(sql_getRange)
-comIdxs = []
-siteIdxs = []
-Medias = []
+# comIdxs = []
+# siteIdxs = []
+medias = []
 for i in cur:
-    
+    mediaDic = {}
+    mediaDic["com_idx"] = i[1]
+    mediaDic["site_idx"] = i[2]
+    mediaDic["news_id"] = i[3]
+    medias.append(mediaDic)
 
-    comIdxs.append(i[1])
-    siteIdxs.append(i[2])
+    # comIdxs.append(i[1])
+    # siteIdxs.append(i[2])
 
-print("comIdxs", comIdxs)
-print("siteIdxs", siteIdxs, '\n')
+# print("comIdxs", comIdxs)
+# print("siteIdxs", siteIdxs, '\n')
+
 # 기존에 몇번재 기사까지 영상으로 만들었는지 체크하기 위한 idx 값은 어디서 체해야하는가?
 
 sql_getNewsData = """
-            SELECT com_idx, site_idx, title, link, image_url FROM insight.i_news
-            where com_idx = %s and  site_idx = %s AND 
+            SELECT com_idx, site_idx, title, link, image_url, news_id FROM insight.i_news
+            where com_idx = %s and  site_idx = %s 
             """
+# AND news_id >= %s
 index = 0
-for j in range(len(comIdxs)):
-    print(comIdxs[j])
+for j in range(len(medias)):
+    print(medias[j]["com_idx"])
     print(" ")
-    cur.execute(sql_getNewsData, (comIdxs[j], siteIdxs[j]))
+    cur.execute(sql_getNewsData, (medias[j]["com_idx"], medias[j]["site_idx"]
+                                  # , medias[j]["news_id"]
+                                  ))
 
     articleRows = cur.fetchall()
 
     articleVideoBufferArray = []
     # 여기서 cur 에 있는 각 기의 데이터를 5개씩 쪼개서 영상을 만들면 된다.
     articleLen = len(articleRows)
+    print("articleLen = ",articleLen)
+    videoCount = articleLen//5
+    print(" videoCount = ", videoCount)
+    convertedArticleCount = ( 5*videoCount )
+
+    print(articleRows[convertedArticleCount-1] )
+    lastArticleNewsId = articleRows[convertedArticleCount-1][5] # 마지막 news_idx
+    lastAtricleComIdx = articleRows[convertedArticleCount-1][0]
+    lastAtricleSiteIdx = articleRows[convertedArticleCount-1][1]
+
+
     articleVideoBuffer = [] # 하나의 비디오를만ㄷ르기위한 데이터 단
-    for i in range(articleLen):
+    for i in range(convertedArticleCount):
         # 5개씩 하나의 묶음을 만든다.
         articleVideoBuffer.append(articleRows[i])
         if ( (i+1)%5 == 0 ):
             articleVideoBufferArray.append(articleVideoBuffer) # 이렇게 할 경우 5개 미만이 모인 aricleVideoBuffer 는 버려진다.
             articleVideoBuffer = []
-        if( i+1 == articleLen):
-            break
+        # if( i+1 == articleLen):
+        #     break
+
     #여기까지 실행되면 몇개의 기사비디오를 만들 수 있는 지 알 수 있다 = len(articleVideoBufferArray)
 
     # article 비디오 버퍼에는 기사데이터가 5개찍 들어가 있다.
-
+    print("### articleVideoBufferArray .length = ",len(articleVideoBufferArray))
     for oneBuffer in articleVideoBufferArray:
         # print(oneBuffer)
         data = {
@@ -320,16 +352,24 @@ for j in range(len(comIdxs)):
         desc_array = []
         imgSrc_array = []
         for oneArticle in oneBuffer:
-            desc_array.append(oneArticle[2])# 타이틀으 가져온다.
+            desc_array.append(oneArticle[2])# 타이틀으 가져온다.y
             imgSrc_array.append(oneArticle[4])
 
         data["description"] = desc_array
         data["images"] = imgSrc_array
         # json_data = json.dumps(data)
-        print("data = ",data,"\n")
-        print("=-=-=-=-=-=-=-")
+        # print("data = ",data,"\n")
+        # print("=-=-=-=-=-=-=-")
         makeArticleVideo(data)
 
+        sql_updateNewsId = """
+            UPDATE i_recommend_video_site
+            SET new_id = %s
+            WHERE com_idx = %s
+            AND site_idx = %s
+        """
+        cur.execute( sql_updateNewsId, (lastArticleNewsId, lastAtricleComIdx, lastAtricleSiteIdx))
+        conn.commit()
 
 
 conn.close()

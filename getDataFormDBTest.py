@@ -47,7 +47,7 @@ print("siteIdxs", siteIdxs, '\n')
 # 기존에 몇번재 기사까지 영상으로 만들었는지 체크하기 위한 idx 값은 어디서 체해야하는가?
 
 sql_getNewsData = """
-            SELECT com_idx, site_idx, title, link, image_url FROM insight.i_news
+            SELECT com_idx, site_idx, title, link, image_url, news_id FROM insight.i_news
             where com_idx = %s and  site_idx = %s
             """
 index = 0
@@ -61,6 +61,13 @@ for j in range(len(comIdxs)):
     articleVideoBufferArray = []
     # 여기서 cur 에 있는 각 기의 데이터를 5개씩 쪼개서 영상을 만들면 된다.
     articleLen = len(articleRows)
+    print("articleLen = ",articleLen)
+
+    videoCount = articleLen//5
+    print(" videoCount = ", videoCount)
+    convertedArticleCount = 5*videoCount
+    print("## convertedArticleCount    ",articleRows[convertedArticleCount-1 ] )
+
     articleVideoBuffer = [] # 하나의 비디오를만ㄷ르기위한 데이터 단
     for i in range(articleLen):
         # 5개씩 하나의 묶음을 만든다.
@@ -103,13 +110,13 @@ for j in range(len(comIdxs)):
         print("=-=-=-=-=-=-=-")
         # print(json_data['images'].__len__())
         img_idx = 1;
-        for img_url in data["images"]:
-            r = requests.get(img_url)
-            file = open(str(img_idx)+".jpg","wb")
-            file.write(r.content)
-            file.close()
-            print
-            break
+        # for img_url in data["images"]:
+        #     r = requests.get(img_url)
+        #     file = open(str(img_idx)+".jpg","wb")
+        #     file.write(r.content)
+        #     file.close()
+        #     print
+        #     break
 
 
 
