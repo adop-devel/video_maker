@@ -15,7 +15,13 @@ import cv2
 import json
 import time
 from PIL import ImageFont, ImageDraw, Image
+import requests # 이미지 다운로드
+import pymysql # mysql 다운르도
 
+import pymysql
+import socket
+
+testVideo = 1
 
 def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     foreground, background = image1.copy(), image2.copy()
@@ -36,10 +42,10 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     return background
 
 
-def setText(timg, color, alignment):
+def setText(timg, color, alignment, videoHeight, desc, font):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
-    draw.text((80, videoHeight - 55), description[idx], font=font, fill=color, align=alignment)
+    draw.text((80, videoHeight - 55), desc, font=font, fill=color, align=alignment)
     draw.text
     timg = numpy.array(img_pil)
     return timg
@@ -67,122 +73,263 @@ def fadeOut(timg, frm):
         dst = cv2.addWeighted(timg, fOut, timg, fOut, 0)
         frm.append(dst)
 
+conn = pymysql.connect(
+    host='insight-cluster-1.cluster-cnzcxy7quzcs.ap-northeast-2.rds.amazonaws.com'
+    , user='adopadmin'
+    , password='Adop*^14'
+    , db='insight'
+    , charset='utf8'
+)
+#i_recommand_video 에서 데이터 select
+# cur = conn.cursor()
+# sql_getRange = """
+#             SELECT * FROM insight.i_news
+#             where site_idx = 756 and  com_idx = 756
+#             """
+# cur.execute(sql_getRange)
+# for i in cur:
+#     print(i)
 
-videoWidth = 640
-videoHeight = 360
 
-expandWidth = 880
-expandHeight = 480
+# 이미지 다운로드
+# url ="https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/Wikipedia-logo-v2.svg/150px-Wikipedia-logo-v2.svg.png"
+#
+# r = requests.get(url)
+# file = open("wiki_logo.jpg","wb")
+# file.write(r.content)
+# file.close()
 
-initWidth = 0
-initHeight = 0
+def makeArticleVideo(data):
+    global testVideo
+    strTestVideo = str(testVideo)
 
-# VIDEO_MAKER_PATH = '/Users/imac/project/video_maker/'
-VIDEO_MAKER_PATH = '/Data/video_maker/'
+#이미지 저장
+    img_idx = 1
+    for img_url in data["images"]:
+        r = requests.get(img_url)
+        file = open("images/"+str(img_idx)+".jpg","wb")
+        file.write(r.content)
+        file.close()
+        img_idx = img_idx + 1
 
-path = '%simages' % VIDEO_MAKER_PATH
-paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
 
-logoPath = '%slogo' % VIDEO_MAKER_PATH
-logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
-paths.sort()
 
-introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
+    # vidoe 설정
+    videoWidth = 640
+    videoHeight = 360
 
-introImg = cv2.imread(introPath)
-introImg = cv2.resize(introImg, (videoWidth, videoHeight))
+    expandWidth = 880
+    expandHeight = 480
 
-logoImg = cv2.imread(logoPath[0])
-logoImg = cv2.resize(logoImg, (40, 40))
+    initWidth = 0
+    initHeight = 0
 
-infoJsonPath = '%sdescription/info.json' % VIDEO_MAKER_PATH
-with open(infoJsonPath) as json_file:
-    vInfoData = json.load(json_file)
+    # VIDEO_MAKER_PATH = '/Users/imac/project/video_maker/'
+    # VIDEO_MAKER_PATH = '/Data/video_maker/'
+    VIDEO_MAKER_PATH = '/Users/admin/git/video_maker/' # allen
 
-pathOut = '%svideo/news.mp4' % VIDEO_MAKER_PATH
-fps = 15
-frame_array = []
+    path = '%simages' % VIDEO_MAKER_PATH
+    paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
+    print("image paths = ", paths)
 
-description = vInfoData['description']
-fontType = vInfoData['font']
+    logoPath = '%slogo' % VIDEO_MAKER_PATH
+    logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
+    paths.sort()
+    print("logo images = ", logoPath)
 
-fontpath = "%sfonts/%s.otf" % (VIDEO_MAKER_PATH, fontType)
-font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
+    introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
 
-for idx, path in enumerate(paths):
-    img = cv2.imread(path)
-    fixedWidth = 0
-    fixedHeight = 0
+    # adop 이미지 크기 정의
+    introImg = cv2.imread(introPath)
+    introImg = cv2.resize(introImg, (videoWidth, videoHeight))
 
-    mainWPos = 0
-    mainHPos = 0
-    for i in range(1, expandHeight - videoHeight + 1):
-        if idx % 2 == 0:
-            initWidth = expandWidth - i * 2
-            initHeight = expandHeight - i
-        else:
-            initWidth = videoWidth + i * 2
-            initHeight = videoHeight + i
+    # 타이틀 옆 로코 그기 정의
+    logoImg = cv2.imread(logoPath[0])
+    logoImg = cv2.resize(logoImg, (40, 40))
 
-        if img.shape[1] / img.shape[0] > initWidth / initHeight:
-            fixedWidth = initWidth
-            fixedHeight = round(initWidth / img.shape[1] * img.shape[0])
-            mainWPos = 0
-            mainHPos = round((initHeight - fixedHeight) / 2)
-        else:
-            fixedHeight = initHeight
-            fixedWidth = round(initHeight / img.shape[0] * img.shape[1])
-            mainWPos = round((initWidth - fixedWidth) / 2)
-            mainHPos = 0
+    # 여기에 타이틀 정보와 랜딩 url 이 있는것인가?
+    # infoJsonPath = '%sdescription/info.json' % VIDEO_MAKER_PATH
+    # with open(infoJsonPath) as json_file:
+    #     vInfoData = json.load(json_file)
+    #     print(type(vInfoData))
+    #     print(" vInfoData = ", vInfoData)
+    vInfoData = data
 
-        mainImg = img.copy()
+    # 비디오 설정
+    pathOut = '%svideo/news%s.mp4' % (VIDEO_MAKER_PATH, strTestVideo)
+    fps = 15
+    frame_array = []
 
-        mainImg = cv2.resize(mainImg, (fixedWidth, fixedHeight))
+    description = vInfoData['description']
+    fontType = vInfoData['font']
 
-        overlay = img.copy()
-        overlay = cv2.resize(overlay, (initWidth, initHeight))
-        bg = cv2.blur(overlay, (30, 30))
-        videoImg = combine_images_with_anchor(mainImg, bg, mainHPos, mainWPos)
+    fontpath = "%sfonts/%s.otf" % (VIDEO_MAKER_PATH, fontType)
+    font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
-        x, y, w, h = 0, videoHeight - 70, videoWidth, 50
-        sub_img = videoImg[y:y + h, x:x + w]
-        white_rect = numpy.ones(sub_img.shape, dtype=numpy.uint8) * 0
-        res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
+    # 비디오 만들기 (사진이동 + fadein/out)
+    for idx, path in enumerate(paths):
+        img = cv2.imread(path)
+        fixedWidth = 0
+        fixedHeight = 0
 
-        # Putting the image back to its position
-        videoImg[y:y + h, x:x + w] = res
-        videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
+        mainWPos = 0
+        mainHPos = 0
+        for i in range(1, expandHeight - videoHeight + 1):
+            if idx % 2 == 0:
+                initWidth = expandWidth - i * 2
+                initHeight = expandHeight - i
+            else:
+                initWidth = videoWidth + i * 2
+                initHeight = videoHeight + i
 
-        croppedImg = videoImg[0:videoHeight, 0:videoWidth]
-        croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'])
+            if img.shape[1] / img.shape[0] > initWidth / initHeight:
+                fixedWidth = initWidth
+                fixedHeight = round(initWidth / img.shape[1] * img.shape[0])
+                mainWPos = 0
+                mainHPos = round((initHeight - fixedHeight) / 2)
+            else:
+                fixedHeight = initHeight
+                fixedWidth = round(initHeight / img.shape[0] * img.shape[1])
+                mainWPos = round((initWidth - fixedWidth) / 2)
+                mainHPos = 0
 
-        height, width, layers = croppedImg.shape
-        size = (width, height)
+            mainImg = img.copy()
 
-        if idx == 0 and i == 1:
-            # fadeOut(introImg, frame_array)
-            fadeIn(croppedImg, frame_array)
-        elif idx != 0 and i == 1:
-            fadeIn(croppedImg, frame_array)
+            mainImg = cv2.resize(mainImg, (fixedWidth, fixedHeight))
 
-        frame_array.append(croppedImg)
+            overlay = img.copy()
+            overlay = cv2.resize(overlay, (initWidth, initHeight))
+            bg = cv2.blur(overlay, (30, 30))
+            videoImg = combine_images_with_anchor(mainImg, bg, mainHPos, mainWPos)
 
-        if i == expandHeight - videoHeight:
-            fadeOut(croppedImg, frame_array)
+            x, y, w, h = 0, videoHeight - 70, videoWidth, 50
+            sub_img = videoImg[y:y + h, x:x + w]
+            white_rect = numpy.ones(sub_img.shape, dtype=numpy.uint8) * 0
+            res = cv2.addWeighted(sub_img, 0.5, white_rect, 0.5, 1.0)
 
-fadeIn(introImg, frame_array)
-fadeOut(introImg, frame_array)
+            # Putting the image back to its position
+            videoImg[y:y + h, x:x + w] = res
+            videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
 
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-out = cv2.VideoWriter(pathOut, fourcc, fps, size)
+            croppedImg = videoImg[0:videoHeight, 0:videoWidth]
+            croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'], videoHeight, description[idx], font)
 
-for i in range(len(frame_array)):
-    # writing to a image array
-    out.write(frame_array[i])
+            height, width, layers = croppedImg.shape
+            size = (width, height)
 
-out.release()
+            if idx == 0 and i == 1:
+                # fadeOut(introImg, frame_array)
+                fadeIn(croppedImg, frame_array)
+            elif idx != 0 and i == 1:
+                fadeIn(croppedImg, frame_array)
 
-finalMakeTask = "ffmpeg -i %svideo/news.mp4 -vcodec libx264 %svideo/final.mp4" % (VIDEO_MAKER_PATH, VIDEO_MAKER_PATH)
-os.system(finalMakeTask)
-finalVideoTask = "chmod 777 %svideo/final.mp4" % VIDEO_MAKER_PATH
-os.system(finalVideoTask)
+            frame_array.append(croppedImg)
+
+            if i == expandHeight - videoHeight:
+                fadeOut(croppedImg, frame_array)
+
+    fadeIn(introImg, frame_array)
+    fadeOut(introImg, frame_array)
+
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    out = cv2.VideoWriter(pathOut, fourcc, fps, size)
+
+    for i in range(len(frame_array)):
+        # writing to a image array
+        out.write(frame_array[i])
+
+    out.release()
+    # print("strTestVideo = "+strTestVideo)
+
+    finalMakeTask = "ffmpeg -i %svideo/news%s.mp4 -vcodec libx264 %svideo/final%s.mp4" % (VIDEO_MAKER_PATH, strTestVideo, VIDEO_MAKER_PATH, strTestVideo)
+    os.system(finalMakeTask)
+    finalVideoTask = "chmod 777 %svideo/final%s.mp4" % (VIDEO_MAKER_PATH , strTestVideo )
+    os.system(finalVideoTask)
+
+    testVideo = testVideo + 1
+
+
+# print(" 이게 먼저 끝나지는 않겠지?")
+
+
+
+# hostname = socket.gethostname() # hostname 은 무엇있가?
+conn = pymysql.connect(
+    host='insight-cluster-1.cluster-cnzcxy7quzcs.ap-northeast-2.rds.amazonaws.com'
+    , user='adopadmin'
+    , password='Adop*^14'
+    , db='insight'
+    , charset='utf8'
+)
+
+cur = conn.cursor()
+
+sql_getRange = """
+            SELECT * FROM insight.i_recommend_video_site WHERE del_yn = 'N'
+            """
+cur.execute(sql_getRange)
+comIdxs = []
+siteIdxs = []
+Medias = []
+for i in cur:
+    
+
+    comIdxs.append(i[1])
+    siteIdxs.append(i[2])
+
+print("comIdxs", comIdxs)
+print("siteIdxs", siteIdxs, '\n')
+# 기존에 몇번재 기사까지 영상으로 만들었는지 체크하기 위한 idx 값은 어디서 체해야하는가?
+
+sql_getNewsData = """
+            SELECT com_idx, site_idx, title, link, image_url FROM insight.i_news
+            where com_idx = %s and  site_idx = %s AND 
+            """
+index = 0
+for j in range(len(comIdxs)):
+    print(comIdxs[j])
+    print(" ")
+    cur.execute(sql_getNewsData, (comIdxs[j], siteIdxs[j]))
+
+    articleRows = cur.fetchall()
+
+    articleVideoBufferArray = []
+    # 여기서 cur 에 있는 각 기의 데이터를 5개씩 쪼개서 영상을 만들면 된다.
+    articleLen = len(articleRows)
+    articleVideoBuffer = [] # 하나의 비디오를만ㄷ르기위한 데이터 단
+    for i in range(articleLen):
+        # 5개씩 하나의 묶음을 만든다.
+        articleVideoBuffer.append(articleRows[i])
+        if ( (i+1)%5 == 0 ):
+            articleVideoBufferArray.append(articleVideoBuffer) # 이렇게 할 경우 5개 미만이 모인 aricleVideoBuffer 는 버려진다.
+            articleVideoBuffer = []
+        if( i+1 == articleLen):
+            break
+    #여기까지 실행되면 몇개의 기사비디오를 만들 수 있는 지 알 수 있다 = len(articleVideoBufferArray)
+
+    # article 비디오 버퍼에는 기사데이터가 5개찍 들어가 있다.
+
+    for oneBuffer in articleVideoBufferArray:
+        # print(oneBuffer)
+        data = {
+            "font": "gothic",
+            "font_size": "14",
+            "font_color": "#000000",
+            "alignment": "left",
+        }
+        desc_array = []
+        imgSrc_array = []
+        for oneArticle in oneBuffer:
+            desc_array.append(oneArticle[2])# 타이틀으 가져온다.
+            imgSrc_array.append(oneArticle[4])
+
+        data["description"] = desc_array
+        data["images"] = imgSrc_array
+        # json_data = json.dumps(data)
+        print("data = ",data,"\n")
+        print("=-=-=-=-=-=-=-")
+        makeArticleVideo(data)
+
+
+
+conn.close()
