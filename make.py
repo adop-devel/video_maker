@@ -7,7 +7,7 @@ import os
 import sys
 import subprocess
 from tempfile import gettempdir
-
+import uuid
 import re
 import os
 import numpy
@@ -103,7 +103,7 @@ conn = pymysql.connect(
 def makeArticleVideo(data):
     global testVideo
     strTestVideo = str(testVideo)
-
+    # 이미지 폴더 초기화
     if( os.path.isfile("/Users/admin/git/video_maker/images/1.jpg")):
         os.remove("/Users/admin/git/video_maker/images/1.jpg")
         os.remove("/Users/admin/git/video_maker/images/2.jpg")
@@ -163,7 +163,16 @@ def makeArticleVideo(data):
     #     print(" vInfoData = ", vInfoData)
     vInfoData = data
 
-    # 비디오 설정
+    # GUID 의 비디오명 생성
+    firstTitle = vInfoData["firstTitle"]
+    print("firstTitle = ",firstTitle)
+    uuidTitle = uuid.uuid3(uuid.NAMESPACE_URL,firstTitle)
+    uuiddataMP4 = uuiddata+".mp4"
+    uuidtestPath = uuiddata+"/"
+    uuidtestGroup = "group_"+uuiddata
+    uuidtestItem = "item+"+uuiddata
+
+   # 비디오 설정
     pathOut = '%svideo/news%s.mp4' % (VIDEO_MAKER_PATH, strTestVideo)
     fps = 15
     frame_array = []
@@ -248,7 +257,7 @@ def makeArticleVideo(data):
 
     out.release()
     # print("strTestVideo = "+strTestVideo)
-
+    # 비디오 폴더 초기
     if (os.path.isfile("/Users/admin/git/video_maker/video") ):
         shutil.rmtree("/Users/admin/git/video_maker/video") # 디렉토리 + 안에 있는 파일도 삭제
         os.mkdir("/Users/admin/git/video_maker/video")
@@ -260,6 +269,12 @@ def makeArticleVideo(data):
 
     testVideo = testVideo + 1
 
+    # data 에 DB 에 넣을 데이터 추가
+
+    return
+
+
+## 여기까지가
 
 # print(" 이게 먼저 끝나지는 않겠지?")
 
@@ -302,11 +317,11 @@ sql_getNewsData = """
             SELECT com_idx, site_idx, title, link, image_url, news_id FROM insight.i_news
             where com_idx = %s and  site_idx = %s 
             """
-# AND news_id >= %s
+# AND news_id >= %s #
 index = 0
 for j in range(len(medias)):
-    print(medias[j]["com_idx"])
-    print(" ")
+    # print(medias[j]["com_idx"])
+    # print(" ")
     cur.execute(sql_getNewsData, (medias[j]["com_idx"], medias[j]["site_idx"]
                                   # , medias[j]["news_id"]
                                   ))
@@ -349,19 +364,35 @@ for j in range(len(medias)):
             "font_color": "#000000",
             "alignment": "left",
         }
+        # com_idx, site_idx, title, link, image_url, news_id
+        comIdx_array = []
+        siteIdx_array = []
         desc_array = []
+        link_array = []
         imgSrc_array = []
+        newsId_array = []
         for oneArticle in oneBuffer:
+            comIdx_array.append(oneArticle[0])
+            siteIdx_array.append(oneArticle[1])
             desc_array.append(oneArticle[2])# 타이틀으 가져온다.y
+            link_array.append(oneArticle[3])
             imgSrc_array.append(oneArticle[4])
+            newsId_array.append(oneArticle[5])
 
+        data["com_idxs"] = comIdx_array
+        data["site_idxs"] = siteIdx_array
         data["description"] = desc_array
+        data["link_arrays"] = link_array
         data["images"] = imgSrc_array
+        data["news_ids"] = newsId_array
+
+        data["firstTitle"] = desc_array[0]
         # json_data = json.dumps(data)
         # print("data = ",data,"\n")
         # print("=-=-=-=-=-=-=-")
         makeArticleVideo(data)
 
+        # 동영상으로 만든 마지막 기사의 news_id를 i_recommend_news 의 new_id 에 저
         sql_updateNewsId = """
             UPDATE i_recommend_video_site
             SET new_id = %s

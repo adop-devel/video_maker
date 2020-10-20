@@ -42,8 +42,8 @@ for i in cur:
     comIdxs.append(i[1])
     siteIdxs.append(i[2])
 
-print("comIdxs", comIdxs)
-print("siteIdxs", siteIdxs, '\n')
+# print("comIdxs", comIdxs)
+# print("siteIdxs", siteIdxs, '\n')
 # 기존에 몇번재 기사까지 영상으로 만들었는지 체크하기 위한 idx 값은 어디서 체해야하는가?
 
 sql_getNewsData = """
@@ -70,6 +70,7 @@ for j in range(len(comIdxs)):
 
     articleVideoBuffer = [] # 하나의 비디오를만ㄷ르기위한 데이터 단
     for i in range(articleLen):
+        print(" article 내용 : ",articleRows[i])
         # 5개씩 하나의 묶음을 만든다.
         articleVideoBuffer.append(articleRows[i])
         if ( (i+1)%5 == 0 ):
@@ -106,8 +107,8 @@ for j in range(len(comIdxs)):
         data["description"] = desc_array
         data["images"] = imgSrc_array
         # json_data = json.dumps(data)
-        print("data = ",data,"\n")
-        print("=-=-=-=-=-=-=-")
+        # print("data = ",data,"\n")
+        # print("=-=-=-=-=-=-=-")
         # print(json_data['images'].__len__())
         img_idx = 1;
         # for img_url in data["images"]:
