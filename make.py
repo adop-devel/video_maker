@@ -17,7 +17,7 @@ import time
 from PIL import ImageFont, ImageDraw, Image
 import requests # 이미지 다운로드
 import pymysql # mysql 다운르도
-
+import boto3
 import pymysql
 import socket
 import shutil
@@ -102,7 +102,7 @@ conn = pymysql.connect(
 
 def makeArticleVideo(data):
     global testVideo
-    strTestVideo = str(testVideo)
+    # strTestVideo = str(testVideo)
     # 이미지 폴더 초기화
     if( os.path.isfile("/Users/admin/git/video_maker/images/1.jpg")):
         os.remove("/Users/admin/git/video_maker/images/1.jpg")
@@ -166,14 +166,20 @@ def makeArticleVideo(data):
     # GUID 의 비디오명 생성
     firstTitle = vInfoData["firstTitle"]
     print("firstTitle = ",firstTitle)
-    uuidTitle = uuid.uuid3(uuid.NAMESPACE_URL,firstTitle)
-    uuiddataMP4 = uuiddata+".mp4"
-    uuidtestPath = uuiddata+"/"
-    uuidtestGroup = "group_"+uuiddata
-    uuidtestItem = "item+"+uuiddata
+    firstTitle = uuid.uuid1()
+    firstTitle = str(firstTitle)
+    firstTitleMP4 = "video_"+firstTitle+".mp4"
+    firstTitlePath = firstTitle+"/"
+    firstTitleGroup = "group_"+firstTitle
+    firstTitleItem = "item+_"+firstTitle
+
+    vInfoData["firstTitleMP4"] = firstTitleMP4
+    vInfoData["firstTitlePath"] = firstTitlePath
+    vInfoData["firstTitleGroup"] = firstTitleGroup
+    vInfoData["firstTitleItem"] = firstTitleItem
 
    # 비디오 설정
-    pathOut = '%svideo/news%s.mp4' % (VIDEO_MAKER_PATH, strTestVideo)
+    pathOut = '%svideo/news%s.mp4' % (VIDEO_MAKER_PATH, firstTitle)
     fps = 15
     frame_array = []
 
@@ -226,7 +232,7 @@ def makeArticleVideo(data):
 
             # Putting the image back to its position
             videoImg[y:y + h, x:x + w] = res
-            videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
+            # videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
 
             croppedImg = videoImg[0:videoHeight, 0:videoWidth]
             croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'], videoHeight, description[idx], font)
@@ -262,19 +268,129 @@ def makeArticleVideo(data):
         shutil.rmtree("/Users/admin/git/video_maker/video") # 디렉토리 + 안에 있는 파일도 삭제
         os.mkdir("/Users/admin/git/video_maker/video")
 
-    finalMakeTask = "ffmpeg -i %svideo/news%s.mp4 -vcodec libx264 %svideo/final%s.mp4" % (VIDEO_MAKER_PATH, strTestVideo, VIDEO_MAKER_PATH, strTestVideo)
+    finalMakeTask = "ffmpeg -i %svideo/news%s.mp4 -vcodec libx264 %svideo/video_%s.mp4" % (VIDEO_MAKER_PATH, firstTitle, VIDEO_MAKER_PATH, firstTitle)
     os.system(finalMakeTask)
-    finalVideoTask = "chmod 777 %svideo/final%s.mp4" % (VIDEO_MAKER_PATH , strTestVideo )
+    finalVideoTask = "chmod 777 %svideo/video_%s.mp4" % (VIDEO_MAKER_PATH , firstTitle )
     os.system(finalVideoTask)
 
     testVideo = testVideo + 1
 
     # data 에 DB 에 넣을 데이터 추가
 
-    return
+    return vInfoData
 
 
 ## 여기까지가
+
+def addToS3Atomvideo(videoInfoData):
+    session = boto3.Session(profile_name='AMW')
+    videoS3 = session.resource('s3')
+    # videoS3 = boto3.resource('s3')
+    videoPath = "video/"+videoInfoData["firstTitleMP4"]
+    print("videoPath = ",videoPath)
+
+    s3Path = "advideo/"+videoInfoData["firstTitlePath"]+videoInfoData["firstTitleMP4"]
+    print("s3Path = ",s3Path)
+    videoS3.meta.client.upload_file(videoPath, 'adop-atom-video', s3Path, ExtraArgs={'ACL':'public-read' ,'ContentType':'video/mp4'} )
+    return videoInfoData
+def insertDataToAtomDB(videoInfoData):
+    # uuidtestData = 'allentestsite.co.kr'
+    # uuiddata = uuid.uuid3(uuid.NAMESPACE_URL,uuidtestData)
+    # uuiddata = str(uuiddata)
+    # print("uuiddata = ",uuiddata)
+
+    # uuiddataMP4 = uuiddata+".mp4"
+    # uuidtestPath = uuiddata+"/"
+    # uuidtestGroup = "group_"+uuiddata
+    # uuidtestItem = "item+"+uuiddata
+
+
+    try:
+        conn_atom = pymysql.connect(
+            host='compass-slave.cnzcxy7quzcs.ap-northeast-2.rds.amazonaws.com'
+            , user='adopadmin'
+            , password='Adop*^14'
+            , db='atom'
+            , charset='utf8'
+        )
+
+        cur_atom = conn_atom.cursor()
+
+        sql_insertItemGroupInfo = """
+            INSERT INTO atom.a_item_group_info 
+                (com_idx, group_idx, user_idx, item_group_name, item_group_name_chk, 
+                item_group_clk_url, item_group_clk_url_chk, item_group_clk_url_reject_type, 
+                item_group_clk_url_reject_memo, item_group_chk_status, item_group_rechk_yn, 
+                item_group_allpass_yn, item_group_chk_adop, item_group_ad_type, 
+                item_group_reg_date, item_group_update_date, item_group_chk_date, 
+                item_group_del_yn, item_group_upload_type, item_group_bg_color, 
+                item_group_alt, item_group_attr)
+            VALUES ( 1, 422, 1802, %s, 'Y', 'article', 'Y', 'R', 'article', 
+                'N', 'N', 'N', 'N', 'V', now(), now(), null, 'N', 'u', '','', '')
+        """
+        itemGroupNameTest = "AllenWebsite20201020-4"
+        cur_atom.execute(sql_insertItemGroupInfo, (videoInfoData["firstTitle"]) )
+        conn_atom.commit()
+        # 마지막 insert id 가져오기 - 근데 막약 내가 넣고 그사이에 다른 사람이 넣으면 어떻게 되는건가? 내 conn 으로 넣은것만?
+        atom_lastrowid =  cur_atom.lastrowid
+        print(" conn_atom.insert_id = ", atom_lastrowid )
+
+
+        sql_insert_aItemInfo = """
+            INSERT INTO atom.a_item_info 
+                (item_group_idx, com_idx, group_idx, user_idx, item_name, 
+                item_clk_url, item_file_name, item_file_path, item_file_chk, 
+                item_end_url, item_reject_memo, item_reject_type, item_size, 
+                item_type, item_reg_date, item_update_date, item_del_yn, 
+                item_endcard_type, item_endcard_idx)
+            VALUES (%s, 1, 422, 1802, %s, '',
+             %s, %s,
+              'R', '', NULL, NULL, 'article', 'K',
+               now(), now(), 'N', '', NULL)
+        """
+        myItemName = 'allenTestItem20201020-3'
+        myItemFileName = "allen3_f4aa43270dd1a9750d379cf201762692.mp4"
+        myItemFilePath = "dirAllen3_f4aa43270dd1a9750d379cf201762692/"
+        cur_atom.execute(sql_insert_aItemInfo, (atom_lastrowid, videoInfoData["firstTitleItem"],videoInfoData["firstTitleMP4"], videoInfoData["firstTitlePath"] ))
+        atom_lastrowid2 =  cur_atom.lastrowid
+        print("2. conn_atom.insert_id = ", atom_lastrowid2 )
+        conn_atom.commit()
+
+        data["com_idxs"] = comIdx_array
+        data["site_idxs"] = siteIdx_array
+        data["description"] = desc_array
+        data["link_arrays"] = link_array
+        data["images"] = imgSrc_array
+        data["news_ids"] = newsId_array
+
+        for i in range(len(videoInfoData["news_ids"])):
+            sql_insert_aArticleVideoInfo = """
+            insert into atom.a_article_video_info
+                (item_idx, font, font_size, font_color, alignment, article_size,
+                 article_subtitle, article_landing_url, article_img_path, article_logo_path )
+                values 
+                ( %s, 'dotum', 20, '#000000', 'left', 480, %s,
+                 %s, %s, %s)
+    
+            """
+            # base64 값 필요
+            convertedTitle = "testallen64"
+            landing_url = "test.com"
+            img_path = "test.jpg"
+            logo_path = "logotest.jpg"
+            cur_atom.execute(sql_insert_aArticleVideoInfo, (atom_lastrowid2, videoInfoData["description"][i], videoInfoData["link_arrays"][i], videoInfoData["images"][i] , logo_path ))
+            atom_lastrowid3 = cur_atom.lastrowid
+            print("2. conn_atom.insert_id = ", atom_lastrowid3 )
+
+
+        conn_atom.commit()
+
+    except Exception as e:
+        print( "error = ",e)
+    finally:
+        conn_atom.close()
+        return True
+
 
 # print(" 이게 먼저 끝나지는 않겠지?")
 
@@ -317,7 +433,7 @@ sql_getNewsData = """
             SELECT com_idx, site_idx, title, link, image_url, news_id FROM insight.i_news
             where com_idx = %s and  site_idx = %s 
             """
-# AND news_id >= %s #
+# AND news_id >= %s # 이부분을 살려야 한번 만든 기사는 동영상으로 만들지 않는다.
 index = 0
 for j in range(len(medias)):
     # print(medias[j]["com_idx"])
@@ -361,7 +477,7 @@ for j in range(len(medias)):
         data = {
             "font": "gothic",
             "font_size": "14",
-            "font_color": "#000000",
+            "font_color": "#FFFFFF",
             "alignment": "left",
         }
         # com_idx, site_idx, title, link, image_url, news_id
@@ -385,12 +501,15 @@ for j in range(len(medias)):
         data["link_arrays"] = link_array
         data["images"] = imgSrc_array
         data["news_ids"] = newsId_array
-
         data["firstTitle"] = desc_array[0]
         # json_data = json.dumps(data)
         # print("data = ",data,"\n")
         # print("=-=-=-=-=-=-=-")
-        makeArticleVideo(data)
+        v_data = makeArticleVideo(data)
+        v_data = addToS3Atomvideo(v_data)
+        result = insertDataToAtomDB(v_data)
+        print("restul = ",result)
+
 
         # 동영상으로 만든 마지막 기사의 news_id를 i_recommend_news 의 new_id 에 저
         sql_updateNewsId = """
