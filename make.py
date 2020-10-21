@@ -165,6 +165,7 @@ def makeArticleVideo(data):
 
     # GUID 의 비디오명 생성
     firstTitle = vInfoData["firstTitle"]
+
     print("firstTitle = ",firstTitle)
     firstTitle = uuid.uuid1()
     firstTitle = str(firstTitle)
@@ -263,11 +264,10 @@ def makeArticleVideo(data):
 
     out.release()
     # print("strTestVideo = "+strTestVideo)
-    # 비디오 폴더 초기
+    # 비디오 폴더 초기화
     if (os.path.isfile("/Users/admin/git/video_maker/video") ):
         shutil.rmtree("/Users/admin/git/video_maker/video") # 디렉토리 + 안에 있는 파일도 삭제
         os.mkdir("/Users/admin/git/video_maker/video")
-
     finalMakeTask = "ffmpeg -i %svideo/news%s.mp4 -vcodec libx264 %svideo/video_%s.mp4" % (VIDEO_MAKER_PATH, firstTitle, VIDEO_MAKER_PATH, firstTitle)
     os.system(finalMakeTask)
     finalVideoTask = "chmod 777 %svideo/video_%s.mp4" % (VIDEO_MAKER_PATH , firstTitle )
@@ -329,7 +329,11 @@ def insertDataToAtomDB(videoInfoData):
                 'N', 'N', 'N', 'N', 'V', now(), now(), null, 'N', 'u', '','', '')
         """
         itemGroupNameTest = "AllenWebsite20201020-4"
-        cur_atom.execute(sql_insertItemGroupInfo, (videoInfoData["firstTitle"]) )
+        # 소재그룹에 도메인 명도 넣어주는 코드
+        item_name_str = videoInfoData["firstLandingUrl"] + "_" + videoInfoData["firstTitle"]
+        cur_atom.execute(sql_insertItemGroupInfo, (item_name_str) ) # 여기를 바꾸면 atom의 소제그룹 데이터가 바뀐다.
+        # videoInfoData["firstTitle"]
+        # data["firstLandingUrl"]
         conn_atom.commit()
         # 마지막 insert id 가져오기 - 근데 막약 내가 넣고 그사이에 다른 사람이 넣으면 어떻게 되는건가? 내 conn 으로 넣은것만?
         atom_lastrowid =  cur_atom.lastrowid
@@ -348,10 +352,11 @@ def insertDataToAtomDB(videoInfoData):
               'R', '', NULL, NULL, 'article', 'K',
                now(), now(), 'N', '', NULL)
         """
-        myItemName = 'allenTestItem20201020-3'
-        myItemFileName = "allen3_f4aa43270dd1a9750d379cf201762692.mp4"
-        myItemFilePath = "dirAllen3_f4aa43270dd1a9750d379cf201762692/"
-        cur_atom.execute(sql_insert_aItemInfo, (atom_lastrowid, videoInfoData["firstTitleItem"],videoInfoData["firstTitleMP4"], videoInfoData["firstTitlePath"] ))
+        # myItemName = 'allenTestItem20201020-3'
+        # myItemFileName = "allen3_f4aa43270dd1a9750d379cf201762692.mp4"
+        # myItemFilePath = "dirAllen3_f4aa43270dd1a9750d379cf201762692/"
+        cur_atom.execute(sql_insert_aItemInfo, (atom_lastrowid, item_name_str ,videoInfoData["firstTitleMP4"], videoInfoData["firstTitlePath"] ))
+        #                                       item_group_idx , item_name         ,   item_file_name               ,   item_file_path
         atom_lastrowid2 =  cur_atom.lastrowid
         print("2. conn_atom.insert_id = ", atom_lastrowid2 )
         conn_atom.commit()
@@ -479,6 +484,7 @@ for j in range(len(medias)):
             "font_size": "14",
             "font_color": "#FFFFFF",
             "alignment": "left",
+            # 여기서 매체 사이트의 url 을 넣으면 된다.
         }
         # com_idx, site_idx, title, link, image_url, news_id
         comIdx_array = []
@@ -502,13 +508,18 @@ for j in range(len(medias)):
         data["images"] = imgSrc_array
         data["news_ids"] = newsId_array
         data["firstTitle"] = desc_array[0]
+
+        mediaDNSarray = link_array[0].split('/')
+        mediaDNS = mediaDNSarray[2]
+        data["firstLandingUrl"] = mediaDNS
+
         # json_data = json.dumps(data)
         # print("data = ",data,"\n")
         # print("=-=-=-=-=-=-=-")
         v_data = makeArticleVideo(data)
         v_data = addToS3Atomvideo(v_data)
         result = insertDataToAtomDB(v_data)
-        print("restul = ",result)
+        print("result = ",result)
 
 
         # 동영상으로 만든 마지막 기사의 news_id를 i_recommend_news 의 new_id 에 저
