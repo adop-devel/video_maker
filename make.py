@@ -35,15 +35,34 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     background[start_y:end_y, start_x:end_x, :] = foreground
     return background
 
+def logoOverlay(image,logo,alpha=1.0,x=0, y=0, scale=1.0):
+    (h, w) = image.shape[:2]
+    image = numpy.dstack([image, numpy.ones((h, w), dtype="uint8") * 255])
+
+    overlay = cv2.resize(logo, None,fx=scale,fy=scale)
+    (wH, wW) = overlay.shape[:2]
+    output = image.copy()
+# blend the two images together using transparent overlays
+    try:
+        if x<0 : x = w+x
+        if y<0 : y = h+y
+        if x+wW > w: wW = w-x
+        if y+wH > h: wH = h-y
+
+        overlay=cv2.addWeighted(output[y:y+wH, x:x+wW],alpha,overlay[:wH,:wW],1.0,0)
+        output[y:y+wH, x:x+wW ] = overlay
+    except Exception as e:
+        print("Error: Logo position is overshooting image!")
+        print(e)
+    output= output[:,:,:3]
+    return output
 
 def setText(timg, color, alignment):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
     draw.text((80, videoHeight - 55), description[idx], font=font, fill=color, align=alignment)
-    draw.text
     timg = numpy.array(img_pil)
     return timg
-
 
 def transForm(timg):
     th, tw = timg.shape[:2]
@@ -67,7 +86,6 @@ def fadeOut(timg, frm):
         dst = cv2.addWeighted(timg, fOut, timg, fOut, 0)
         frm.append(dst)
 
-
 videoWidth = 640
 videoHeight = 360
 
@@ -78,7 +96,8 @@ initWidth = 0
 initHeight = 0
 
 # VIDEO_MAKER_PATH = '/Users/imac/project/video_maker/'
-VIDEO_MAKER_PATH = '/Data/video_maker/'
+# VIDEO_MAKER_PATH = '/Data/video_maker/'
+VIDEO_MAKER_PATH = '/Users/kimsunjung/Documents/workspace//video_maker/'
 
 path = '%simages' % VIDEO_MAKER_PATH
 paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
@@ -92,7 +111,7 @@ introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
 introImg = cv2.imread(introPath)
 introImg = cv2.resize(introImg, (videoWidth, videoHeight))
 
-logoImg = cv2.imread(logoPath[0])
+logoImg = cv2.imread(logoPath[0],cv2.IMREAD_UNCHANGED)
 logoImg = cv2.resize(logoImg, (40, 40))
 
 infoJsonPath = '%sdescription/info.json' % VIDEO_MAKER_PATH
@@ -151,7 +170,7 @@ for idx, path in enumerate(paths):
 
         # Putting the image back to its position
         videoImg[y:y + h, x:x + w] = res
-        videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
+        videoImg = logoOverlay(videoImg, logoImg, 1.0, 5, videoHeight-65)
 
         croppedImg = videoImg[0:videoHeight, 0:videoWidth]
         croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'])
