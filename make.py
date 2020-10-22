@@ -36,26 +36,28 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     return background
 
 def logoOverlay(image,logo,alpha=1.0,x=0, y=0, scale=1.0):
-    (h, w) = image.shape[:2]
-    image = numpy.dstack([image, numpy.ones((h, w), dtype="uint8") * 255])
+    rows, cols, channels = logo.shape
 
-    overlay = cv2.resize(logo, None,fx=scale,fy=scale)
-    (wH, wW) = overlay.shape[:2]
-    output = image.copy()
-# blend the two images together using transparent overlays
-    try:
-        if x<0 : x = w+x
-        if y<0 : y = h+y
-        if x+wW > w: wW = w-x
-        if y+wH > h: wH = h-y
+    start_y = y;
+    end_y = y+rows;
 
-        overlay=cv2.addWeighted(output[y:y+wH, x:x+wW],alpha,overlay[:wH,:wW],1.0,0)
-        output[y:y+wH, x:x+wW ] = overlay
-    except Exception as e:
-        print("Error: Logo position is overshooting image!")
-        print(e)
-    output= output[:,:,:3]
-    return output
+    start_x = x;
+    end_x = x+cols;
+
+    roi = image[start_y:end_y, start_x:end_x, :]
+    img2gray = cv2.cvtColor(logo,cv2.COLOR_BGR2GRAY)
+    ret, mask = cv2.threshold(img2gray, 10, 255, cv2.THRESH_BINARY)
+    mask_inv = cv2.bitwise_not(mask)
+    # Now black-out the area of logo in ROI
+    img1_bg = cv2.bitwise_and(roi,roi,mask = mask_inv)
+    # Take only region of logo from logo image.
+    img2_fg = cv2.bitwise_and(logo,logo,mask = mask)
+    # Put logo in ROI and modify the main image
+    dst = cv2.add(img1_bg,img2_fg)
+
+    image[start_y:end_y, start_x:end_x, :] = dst
+
+    return image
 
 def setText(timg, color, alignment):
     img_pil = Image.fromarray(timg)
@@ -111,7 +113,7 @@ introPath = '%sassets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
 introImg = cv2.imread(introPath)
 introImg = cv2.resize(introImg, (videoWidth, videoHeight))
 
-logoImg = cv2.imread(logoPath[0],cv2.IMREAD_UNCHANGED)
+logoImg = cv2.imread(logoPath[0])
 logoImg = cv2.resize(logoImg, (40, 40))
 
 infoJsonPath = '%sdescription/info.json' % VIDEO_MAKER_PATH
