@@ -39,7 +39,7 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
 def setText(timg, color, alignment):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
-    draw.text((80, videoHeight - 325), description[idx], font=font, fill=color, align=alignment)
+    draw.text((55, videoHeight - 325), description[idx], font=font, fill=color, align=alignment)
     ## 여기 수정하면 자막 높이조정 가능
     draw.text
     timg = numpy.array(img_pil)
@@ -98,6 +98,29 @@ def remove_background(image, thresh, scale_factor=.25, kernel_range=range(1, 15)
     fg = cv2.bitwise_and(image, image, mask=mask)
     return fg
 
+def logoOverlay(image,logo,alpha=1.0,x=0, y=0, scale=1.0):
+    rows, cols, channels = logo.shape
+
+    start_y = y;
+    end_y = y+rows;
+
+    start_x = x;
+    end_x = x+cols;
+## ㅁㄴㅇㄹㅁ
+    roi = image[start_y:end_y, start_x:end_x, :]
+    img2gray = cv2.cvtColor(logo,cv2.COLOR_BGR2GRAY)
+    ret, mask = cv2.threshold(img2gray, 150, 255, cv2.THRESH_BINARY)
+    mask_inv = cv2.bitwise_not(mask)
+    # Now black-out the area of logo in ROI
+    img1_bg = cv2.bitwise_and(roi,roi,mask = mask_inv)
+    # Take only region of logo from logo image.
+    img2_fg = cv2.bitwise_and(logo,logo,mask = mask)
+    # Put logo in ROI and modify the main image
+    dst = cv2.add(img1_bg,img2_fg)
+
+    image[start_y:end_y, start_x:end_x, :] = dst
+
+    return image
 
 
 
@@ -131,7 +154,7 @@ introImg = cv2.imread(introPath)
 # logoImg[trans_mask] = [255, 255, 255]
 # logoImg = cv2.cvtColor(logoImg, cv2.COLOR_BGRA2BGR)
 
-img = cv2.imread('/Users/admin/git/video_maker/logo/like2.png')
+img = cv2.imread('/Users/admin/git/video_maker/logo/finalLike.png')
 # nb_img = remove_background(img, 230)
 
 logoImg = cv2.resize(img, (40, 40)) #이 부분을 주석하면 로고가 들어가지 않는다.
@@ -139,10 +162,10 @@ logoImg = cv2.resize(img, (40, 40)) #이 부분을 주석하면 로고가 들어
 cv2.imshow('test',logoImg)
 cv2.waitKey(1000)
 
-clickImg = cv2.imread('/Users/admin/git/video_maker/logo/clickplease.png')
+clickImg = cv2.imread('/Users/admin/git/video_maker/logo/clickhere3.png')
 # nb_img = remove_background(img, 230)
 
-clickImg = cv2.resize(clickImg, (100, 160)) #이 부분을 주석하면 로고가 들어가지 않는다.
+clickImg = cv2.resize(clickImg, (126, 35)) #이 부분을 주석하면 로고가 들어가지 않는다.
 
 # exit(0)
 # cv2.COLOR_BGRA2RGB
@@ -206,15 +229,21 @@ for idx, path in enumerate(paths):
         # Putting the image back to its position
         videoImg[y:y + h, x:x + w] = res
         ## 여기를 수정하면 죄측 로고의 y 값이 변경된다.
-        videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 335, 5)
+        # logoOverLay  param 순서 ( 배경 이미지 , png 이미지, 1.0고정, x 위치, y 위치 )
+        videoImg = logoOverlay( videoImg,logoImg, 1.0, 7 , 25)
         # combine_images_with_anchor 를 사용하면 기존의 이미지에 선택한 이미지를 원하는 우치에 넣을 수 있는것으로 보인다.
         ## allen - click 버튼을 이미지에 추가
-        videoImg = combine_images_with_anchor(clickImg, videoImg, videoHeight - 305, 450)
+        # videoImg = combine_images_with_anchor(videoImg,clickImg, videoHeight-180, videoWidth-110 ) # x, y
+        videoImg = combine_images_with_anchor(clickImg,videoImg, videoHeight-110, videoWidth-135 ) # x, y
+
 
 
         croppedImg = videoImg[0:videoHeight, 0:videoWidth]
         croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'])
-
+        cv2.imshow('test',croppedImg)
+        cv2.waitKey(0)
+        cv2.destroyAllWindows()
+        break
         height, width, layers = croppedImg.shape
         size = (width, height)
 

@@ -97,7 +97,9 @@ initHeight = 0
 
 # VIDEO_MAKER_PATH = '/Users/imac/project/video_maker/'
 # VIDEO_MAKER_PATH = '/Data/video_maker/'
-VIDEO_MAKER_PATH = '/Users/kimsunjung/Documents/workspace//video_maker/'
+VIDEO_MAKER_PATH = '/Users/kimsunjung/Documents/workspace/video_maker/'
+# VIDEO_MAKER_PATH = '/Users/admin/git/video_maker/' # allen
+
 
 path = '%simages' % VIDEO_MAKER_PATH
 paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
