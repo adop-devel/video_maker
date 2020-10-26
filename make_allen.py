@@ -162,7 +162,7 @@ logoImg = cv2.resize(img, (40, 40)) #이 부분을 주석하면 로고가 들어
 cv2.imshow('test',logoImg)
 cv2.waitKey(1000)
 
-clickImg = cv2.imread('/Users/admin/git/video_maker/logo/clickhere3.png')
+clickImg = cv2.imread('/Users/admin/git/video_maker/logo/clickhere_final.png')
 # nb_img = remove_background(img, 230)
 
 clickImg = cv2.resize(clickImg, (126, 35)) #이 부분을 주석하면 로고가 들어가지 않는다.
@@ -178,6 +178,11 @@ fps = 15
 frame_array = []
 
 description = vInfoData['description']
+## desc 가 너무 길시 줄이고 ... 처리
+# for i in range(len(description)) :
+#     if len(description[i]) >= 35 :
+#         description[i] = description[i][0:35] + '....'
+
 fontType = vInfoData['font']
 
 fontpath = "%sfonts/%s" % (VIDEO_MAKER_PATH, fontType)
@@ -234,7 +239,7 @@ for idx, path in enumerate(paths):
         # combine_images_with_anchor 를 사용하면 기존의 이미지에 선택한 이미지를 원하는 우치에 넣을 수 있는것으로 보인다.
         ## allen - click 버튼을 이미지에 추가
         # videoImg = combine_images_with_anchor(videoImg,clickImg, videoHeight-180, videoWidth-110 ) # x, y
-        videoImg = combine_images_with_anchor(clickImg,videoImg, videoHeight-110, videoWidth-135 ) # x, y
+        videoImg = combine_images_with_anchor(clickImg,videoImg, videoHeight-120, videoWidth-140 ) # x, y
 
 
 
