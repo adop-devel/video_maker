@@ -21,7 +21,7 @@ import boto3
 import pymysql
 import socket
 import shutil
-
+import base64
 testVideo = 1
 
 def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
@@ -46,7 +46,7 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
 def setText(timg, color, alignment, videoHeight, desc, font):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
-    draw.text((55, videoHeight - 325), desc, desc, font=font, fill=color, align=alignment)
+    draw.text((55, videoHeight - 325), desc, font=font, fill=color, align=alignment)
     draw.text
     timg = numpy.array(img_pil)
     return timg
@@ -135,6 +135,7 @@ def makeArticleVideo(data):
         os.remove("/Users/admin/git/video_maker/images/3.jpg")
         os.remove("/Users/admin/git/video_maker/images/4.jpg")
         os.remove("/Users/admin/git/video_maker/images/5.jpg")
+        os.remove("/Users/admin/git/video_maker/images/6.jpg")
 
 #이미지 저장
     img_idx = 1
@@ -222,7 +223,7 @@ def makeArticleVideo(data):
     #         description[i] = description[i][0:35] + '....'
     fontType = vInfoData['font']
 
-    fontpath = "%sfonts/%s.otf" % (VIDEO_MAKER_PATH, fontType)
+    fontpath = "%sfonts/%s" % (VIDEO_MAKER_PATH, fontType)
     font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
     # 비디오 만들기 (사진이동 + fadein/out)
@@ -233,6 +234,7 @@ def makeArticleVideo(data):
 
         mainWPos = 0
         mainHPos = 0
+        print("idx = ",idx)
         for i in range(1, expandHeight - videoHeight + 1):
             if idx % 2 == 0:
                 initWidth = expandWidth - i * 2
@@ -276,6 +278,7 @@ def makeArticleVideo(data):
             videoImg = combine_images_with_anchor(clickImg,videoImg, videoHeight-120, videoWidth-140 )
 
             croppedImg = videoImg[0:videoHeight, 0:videoWidth]
+            # print( " vInfoData['font_color'] =",vInfoData['font_color'])
             croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'], videoHeight, description[idx], font)
             # cv2.imshow('test',croppedImg)
             # cv2.waitKey(0)
@@ -335,6 +338,7 @@ def addToS3Atomvideo(videoInfoData):
     s3Path = "advideo/"+videoInfoData["firstTitlePath"]+videoInfoData["firstTitleMP4"]
     print("s3Path = ",s3Path)
     videoS3.meta.client.upload_file(videoPath, 'adop-atom-video', s3Path, ExtraArgs={'ACL':'public-read' ,'ContentType':'video/mp4'} )
+    print("비디오 업로드디")
     return videoInfoData
 def insertDataToAtomDB(videoInfoData):
     # uuidtestData = 'allentestsite.co.kr'
@@ -415,18 +419,24 @@ def insertDataToAtomDB(videoInfoData):
             sql_insert_aArticleVideoInfo = """
             insert into atom.a_article_video_info
                 (item_idx, font, font_size, font_color, alignment, article_size,
-                 article_subtitle, article_landing_url, article_img_path, article_logo_path )
+                 article_subtitle, article_landing_url, article_img_path, article_logo_path, site_idx_cps )
                 values 
                 ( %s, 'dotum', 20, '#000000', 'left', 480, %s,
-                 %s, %s, %s)
+                 %s, %s, %s, 'edfeee64-69b8-4db2-9f55-e60a4b4ad5c7')
     
             """
+            # site_idx_cps 는 mtb를 위한 것이고 추후 각 매체의 값을 넣도록 수정필요
             # base64 값 필요
+            desc_encoded = (videoInfoData["description"][i]).encode('utf-8')
+            desc_base64ed = base64.b64encode(desc_encoded)
+
+
             convertedTitle = "testallen64"
             landing_url = "test.com"
             img_path = "test.jpg"
             logo_path = "logotest.jpg"
-            cur_atom.execute(sql_insert_aArticleVideoInfo, (atom_lastrowid2, videoInfoData["description"][i], videoInfoData["link_arrays"][i], videoInfoData["images"][i] , logo_path ))
+
+            cur_atom.execute(sql_insert_aArticleVideoInfo, (atom_lastrowid2, desc_base64ed, videoInfoData["link_arrays"][i], videoInfoData["images"][i] , logo_path ))
             atom_lastrowid3 = cur_atom.lastrowid
             print("2. conn_atom.insert_id = ", atom_lastrowid3 )
 
@@ -457,11 +467,14 @@ cur = conn.cursor()
 
 sql_getRange = """
             SELECT * FROM insight.i_recommend_video_site WHERE del_yn = 'N'
+            and site_idx = 756
             """
+# site_idx 를 756 으로 하는건 머니투데이만 하려고
+# 추후 각 사이트 매체의 site_idx_cps 를 가져오게 해야한다.
 cur.execute(sql_getRange)
 # comIdxs = []
 # siteIdxs = []
-medias = []
+medias = [] # 추천 비디오를 만들 매체
 for i in cur:
     mediaDic = {}
     mediaDic["com_idx"] = i[1]
@@ -493,12 +506,12 @@ for j in range(len(medias)):
     articleRows = cur.fetchall()
 
     articleVideoBufferArray = []
-    # 여기서 cur 에 있는 각 기의 데이터를 5개씩 쪼개서 영상을 만들면 된다.
+    # 여기서 cur 에 있는 각 기의 데이터를 6개씩 쪼개서 영상을 만들면 된다
     articleLen = len(articleRows)
     print("articleLen = ",articleLen)
-    videoCount = articleLen//5
+    videoCount = articleLen//6
     print(" videoCount = ", videoCount)
-    convertedArticleCount = ( 5*videoCount )
+    convertedArticleCount = ( 6*videoCount )
 
     print(articleRows[convertedArticleCount-1] )
     lastArticleNewsId = articleRows[convertedArticleCount-1][5] # 마지막 news_idx
@@ -508,9 +521,9 @@ for j in range(len(medias)):
 
     articleVideoBuffer = [] # 하나의 비디오를만ㄷ르기위한 데이터 단
     for i in range(convertedArticleCount):
-        # 5개씩 하나의 묶음을 만든다.
+        # 6개씩 하나의 묶음을 만든다.
         articleVideoBuffer.append(articleRows[i])
-        if ( (i+1)%5 == 0 ):
+        if ( (i+1)%6 == 0 ):
             articleVideoBufferArray.append(articleVideoBuffer) # 이렇게 할 경우 5개 미만이 모인 aricleVideoBuffer 는 버려진다.
             articleVideoBuffer = []
         # if( i+1 == articleLen):
@@ -518,13 +531,13 @@ for j in range(len(medias)):
 
     #여기까지 실행되면 몇개의 기사비디오를 만들 수 있는 지 알 수 있다 = len(articleVideoBufferArray)
 
-    # article 비디오 버퍼에는 기사데이터가 5개찍 들어가 있다.
+    # article 비디오 버퍼에는 기사데이터가 6개 들어가 있다.
     print("### articleVideoBufferArray .length = ",len(articleVideoBufferArray))
     for oneBuffer in articleVideoBufferArray:
         # print(oneBuffer)
         data = {
-            "font": "gothic",
-            "font_size": "14",
+            "font": "NanumGothic-Bold.ttf",
+            "font_size": "18",
             "font_color": "#FFFFFF",
             "alignment": "left",
             # 여기서 매체 사이트의 url 을 넣으면 된다.
@@ -562,7 +575,7 @@ for j in range(len(medias)):
         v_data = makeArticleVideo(data)
         v_data = addToS3Atomvideo(v_data)
         result = insertDataToAtomDB(v_data)
-        print("result = ",result)
+        # print("result = ",result)
 
 
         # 동영상으로 만든 마지막 기사의 news_id를 i_recommend_news 의 new_id 에 저
@@ -574,6 +587,5 @@ for j in range(len(medias)):
         """
         cur.execute( sql_updateNewsId, (lastArticleNewsId, lastAtricleComIdx, lastAtricleSiteIdx))
         conn.commit()
-
 
 conn.close()
