@@ -45,7 +45,7 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
     return background
 
 
-def set_text(timg, color, alignment, videoHeight, desc, font):
+def setText(timg, color, alignment, videoHeight, desc, font):
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
     draw.text((55, videoHeight - 325), desc, font=font, fill=color, align=alignment)
@@ -53,26 +53,25 @@ def set_text(timg, color, alignment, videoHeight, desc, font):
     return numpy.array(img_pil)
 
 
-def transform(timg):
+def transForm(timg):
     th, tw = timg.shape[:2]
     M = numpy.float32([[1, 0, 100], [0, 1, 50]])
     return cv2.warpAffine(timg, M, (tw, th))
 
 
-def fade_in(timg, frm):
+def fadeIn(timg, frm):
     for IN in range(0, 15):
-        fadeIn = IN / 30.0
-        dst = cv2.addWeighted(timg, fadeIn, timg, fadeIn, 0)
-        frm.append(dst)
+        fadein = IN / 30.0
+        frm.append(cv2.addWeighted(timg, fadein, timg, fadein, 0))
 
 
-def fade_out(tImg, frm):
+def fadeOut(timg, frm):
     for OUT in range(15, 0, -1):
-        fadeOut = OUT / 30.0
-        frm.append(cv2.addWeighted(tImg, fadeOut, tImg, fadeOut, 0))
+        fOut = OUT / 30.0
+        frm.append(cv2.addWeighted(timg, fOut, timg, fOut, 0))
 
 
-def logo_overlay(image, logo, alpha=1.0, x=0, y=0, scale=1.0):
+def logoOverlay(image, logo, alpha=1.0, x=0, y=0, scale=1.0):
     rows, cols, channels = logo.shape
 
     start_y = y;
@@ -125,11 +124,11 @@ conn = pymysql.connect(
 # file.write(r.content)
 # file.close()
 
-def make_article_video(data):
+def makeArticleVideo(data):
     global testVideo
     # strTestVideo = str(testVideo)
     # 이미지 폴더 초기화
-    imagePath = '/Users/mac/IdeaProjects/video_maker/'  # wesley path
+    imagePath = '/Users/mac/IdeaProjects/video_maker'  # wesley path
     if os.path.isfile(imagePath + "1.jpg"):
         for i in range(1, 6):
             os.remove(imagePath + str({i}) + ".jpg")
@@ -156,17 +155,12 @@ def make_article_video(data):
     # VIDEO_MAKER_PATH = '/Data/video_maker/'
     VIDEO_MAKER_PATH = '/Users/mac/IdeaProjects/video_maker'  # wesley
     # VIDEO_MAKER_PATH = '/Users/admin/git/video_maker/' # allen
-    # wesley , this Path is fail
 
     path = '%s/images' % VIDEO_MAKER_PATH
-    paths = [os.path.join(path, i)
-             for i in os.listdir(path)
-             if re.search(".(jpg|png|gif)$", i)]
+    paths = [os.path.join(path, i) for i in os.listdir(path) if re.search(".(jpg|png|gif)$", i)]
 
     logoPath = '%s/logo' % VIDEO_MAKER_PATH
-    logoPath = [os.path.join(logoPath, i)
-                for i in os.listdir(logoPath)
-                if re.search(".(jpg|png|gif)$", i)]
+    logoPath = [os.path.join(logoPath, i) for i in os.listdir(logoPath) if re.search(".(jpg|png|gif)$", i)]
     paths.sort()
 
     introPath = '%s/assets/adop-intro-1080.jpg' % VIDEO_MAKER_PATH
@@ -180,8 +174,7 @@ def make_article_video(data):
     logoImg = cv2.resize(logoImg, (40, 40))
     # cv2.imshow('test',logoImg)
     cv2.waitKey(1000)
-    logo_path = '%s/logo/clickhere_final.png' % VIDEO_MAKER_PATH
-    clickImg = cv2.imread(logo_path)
+    clickImg = cv2.imread('%s/logo/clickhere_final.png' % VIDEO_MAKER_PATH)
 
     clickImg = cv2.resize(clickImg, (126, 35))  # 이 부분을 주석하면 로고가 들어가지 않는다.
 
@@ -197,7 +190,8 @@ def make_article_video(data):
     firstTitle = vInfoData["firstTitle"]
 
     print("firstTitle = ", firstTitle)
-    firstTitle = str(uuid.uuid1())
+    firstTitle = uuid.uuid1()
+    firstTitle = str(firstTitle)
     firstTitleMP4 = "video_" + firstTitle + ".mp4"
     firstTitlePath = firstTitle + "/"
     firstTitleGroup = "group_" + firstTitle
@@ -220,8 +214,8 @@ def make_article_video(data):
     #         description[i] = description[i][0:35] + '....'
     fontType = vInfoData['font']
 
-    fontPath = "%s/fonts/%s" % (VIDEO_MAKER_PATH, fontType)
-    font = ImageFont.truetype(fontPath, int(vInfoData['font_size']))
+    fontpath = "%s/fonts/%s" % (VIDEO_MAKER_PATH, fontType)
+    font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
     # 비디오 만들기 (사진이동 + fadein/out)
     for idx, path in enumerate(paths):
@@ -271,13 +265,13 @@ def make_article_video(data):
             # Putting the image back to its position
             videoImg[y:y + h, x:x + w] = res
             # videoImg = combine_images_with_anchor(logoImg, videoImg, videoHeight - 65, 5)
-            videoImg = logo_overlay(videoImg, logoImg, 1.0, 7, 25)
+            videoImg = logoOverlay(videoImg, logoImg, 1.0, 7, 25)
             videoImg = combine_images_with_anchor(clickImg, videoImg, videoHeight - 120, videoWidth - 140)
 
             croppedImg = videoImg[0:videoHeight, 0:videoWidth]
             # print( " vInfoData['font_color'] =",vInfoData['font_color'])
-            croppedImg = set_text(croppedImg, vInfoData['font_color'], vInfoData['alignment'], videoHeight,
-                                  description[idx], font)
+            croppedImg = setText(croppedImg, vInfoData['font_color'], vInfoData['alignment'], videoHeight,
+                                 description[idx], font)
             # cv2.imshow('test',croppedImg)
             # cv2.waitKey(0)
             # cv2.destroyAllWindows()
@@ -287,17 +281,17 @@ def make_article_video(data):
 
             if idx == 0 and i == 1:
                 # fadeOut(introImg, frame_array)
-                fade_in(croppedImg, frame_array)
+                fadeIn(croppedImg, frame_array)
             elif idx != 0 and i == 1:
-                fade_in(croppedImg, frame_array)
+                fadeIn(croppedImg, frame_array)
 
             frame_array.append(croppedImg)
 
             if i == expandHeight - videoHeight:
-                fade_out(croppedImg, frame_array)
+                fadeOut(croppedImg, frame_array)
 
-    fade_in(introImg, frame_array)
-    fade_out(introImg, frame_array)
+    fadeIn(introImg, frame_array)
+    fadeOut(introImg, frame_array)
     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     out = cv2.VideoWriter(pathOut, fourcc, fps, size)
 
@@ -329,19 +323,19 @@ def make_article_video(data):
 
 ## 여기까지가
 
-def add_to_s3_atom_video(videoInfoData):
+def addToS3Atomvideo(videoInfoData):
     session = boto3.Session(profile_name='AMW')
     videoS3 = session.resource('s3')
     # videoS3 = boto3.resource('s3')
     videoPath = "video/" + videoInfoData["firstTitleMP4"]
 
-    s3Path = "adVideo/" + videoInfoData["firstTitlePath"] + videoInfoData["firstTitleMP4"]
+    s3Path = "advideo/" + videoInfoData["firstTitlePath"] + videoInfoData["firstTitleMP4"]
     videoS3.meta.client.upload_file(videoPath, 'adop-atom-video', s3Path,
                                     ExtraArgs={'ACL': 'public-read', 'ContentType': 'video/mp4'})
     return videoInfoData
 
 
-def insert_data_to_atomDB(videoInfoData):
+def insertDataToAtomDB(videoInfoData):
     # uuidtestData = 'allentestsite.co.kr'
     # uuiddata = uuid.uuid3(uuid.NAMESPACE_URL,uuidtestData)
     # uuiddata = str(uuiddata)
@@ -378,7 +372,7 @@ def insert_data_to_atomDB(videoInfoData):
         itemGroupNameTest = "AllenWebsite20201020-4"
         # 소재그룹에 도메인 명도 넣어주는 코드
         item_name_str = videoInfoData["firstLandingUrl"] + "_" + videoInfoData["firstTitle"]
-        cur_atom.execute(sql_insertItemGroupInfo, item_name_str)  # 여기를 바꾸면 atom의 소제그룹 데이터가 바뀐다.
+        cur_atom.execute(sql_insertItemGroupInfo, (item_name_str))  # 여기를 바꾸면 atom의 소제그룹 데이터가 바뀐다.
         # videoInfoData["firstTitle"]
         # data["firstLandingUrl"]
         conn_atom.commit()
@@ -402,7 +396,7 @@ def insert_data_to_atomDB(videoInfoData):
         # myItemFileName = "allen3_f4aa43270dd1a9750d379cf201762692.mp4"
         # myItemFilePath = "dirAllen3_f4aa43270dd1a9750d379cf201762692/"
         cur_atom.execute(sql_insert_aItemInfo, (
-            atom_lastrowid, item_name_str, videoInfoData["firstTitleMP4"], videoInfoData["firstTitlePath"]))
+        atom_lastrowid, item_name_str, videoInfoData["firstTitleMP4"], videoInfoData["firstTitlePath"]))
         #                                       item_group_idx , item_name         ,   item_file_name               ,   item_file_path
         atom_lastrowid2 = cur_atom.lastrowid
         print("2. conn_atom.insert_id = ", atom_lastrowid2)
@@ -436,7 +430,7 @@ def insert_data_to_atomDB(videoInfoData):
             logo_path = "logotest.jpg"
 
             cur_atom.execute(sql_insert_aArticleVideoInfo, (
-                atom_lastrowid2, desc_base64ed, videoInfoData["link_arrays"][i], videoInfoData["images"][i], logo_path))
+            atom_lastrowid2, desc_base64ed, videoInfoData["link_arrays"][i], videoInfoData["images"][i], logo_path))
             atom_lastrowid3 = cur_atom.lastrowid
             print("2. conn_atom.insert_id = ", atom_lastrowid3)
 
@@ -448,9 +442,7 @@ def insert_data_to_atomDB(videoInfoData):
         conn_atom.close()
         return True
 
-
 # print(" 이게 먼저 끝나지는 않겠지?")
-
 
 # hostname = socket.gethostname() # hostname 은 무엇있가?
 conn = pymysql.connect(
@@ -479,7 +471,6 @@ for i in cur:
     mediaDic["site_idx"] = i[2]
     mediaDic["news_id"] = i[3]
     medias.append(mediaDic)
-
     # comIdxs.append(i[1])
     # siteIdxs.append(i[2])
 
@@ -525,7 +516,6 @@ for j in range(len(medias)):
             articleVideoBuffer = []
         # if( i+1 == articleLen):
         #     break
-
     # 여기까지 실행되면 몇개의 기사비디오를 만들 수 있는 지 알 수 있다 = len(articleVideoBufferArray)
 
     # article 비디오 버퍼에는 기사데이터가 6개 들어가 있다.
@@ -561,7 +551,6 @@ for j in range(len(medias)):
         data["images"] = imgSrc_array
         data["news_ids"] = newsId_array
         data["firstTitle"] = desc_array[0]
-        print("data = ")
         print(data)
 
         mediaDNSarray = link_array[0].split('/')
@@ -571,7 +560,7 @@ for j in range(len(medias)):
         # json_data = json.dumps(data)
         # print("data = ",data,"\n")
         # print("=-=-=-=-=-=-=-")
-        v_data = make_article_video(data)
+        v_data = makeArticleVideo(data)
         # v_data = addToS3Atomvideo(v_data)
         # result = insertDataToAtomDB(v_data)
         # # print("result = ",result)

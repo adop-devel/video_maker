@@ -61,24 +61,24 @@ for j in range(len(comIdxs)):
     articleVideoBufferArray = []
     # 여기서 cur 에 있는 각 기의 데이터를 5개씩 쪼개서 영상을 만들면 된다.
     articleLen = len(articleRows)
-    print("articleLen = ",articleLen)
+    print("articleLen = ", articleLen)
 
-    videoCount = articleLen//5
+    videoCount = articleLen // 5
     print(" videoCount = ", videoCount)
-    convertedArticleCount = 5*videoCount
-    print("## convertedArticleCount    ",articleRows[convertedArticleCount-1 ] )
+    convertedArticleCount = 5 * videoCount
+    print("## convertedArticleCount    ", articleRows[convertedArticleCount - 1])
 
-    articleVideoBuffer = [] # 하나의 비디오를만ㄷ르기위한 데이터 단
+    articleVideoBuffer = []  # 하나의 비디오를만ㄷ르기위한 데이터 단
     for i in range(articleLen):
-        print(" article 내용 : ",articleRows[i])
+        print(" article 내용 : ", articleRows[i])
         # 5개씩 하나의 묶음을 만든다.
         articleVideoBuffer.append(articleRows[i])
-        if ( (i+1)%5 == 0 ):
-            articleVideoBufferArray.append(articleVideoBuffer) # 이렇게 할 경우 5개 미만이 모인 aricleVideoBuffer 는 버려진다.
+        if (i + 1) % 5 == 0:
+            articleVideoBufferArray.append(articleVideoBuffer)  # 이렇게 할 경우 5개 미만이 모인 aricleVideoBuffer 는 버려진다.
             articleVideoBuffer = []
-        if( i+1 == articleLen):
+        if i + 1 == articleLen:
             break
-    #여기까지 실행되면 몇개의 기사비디오를 만들 수 있는 지 알 수 있다 = len(articleVideoBufferArray)
+    # 여기까지 실행되면 몇개의 기사비디오를 만들 수 있는 지 알 수 있다 = len(articleVideoBufferArray)
 
     # article 비디오 버퍼에는 기사데이터가 5개찍 들어가 있다.
 
@@ -93,7 +93,7 @@ for j in range(len(comIdxs)):
         desc_array = []
         imgSrc_array = []
         for oneArticle in oneBuffer:
-            desc_array.append(oneArticle[2])# 타이틀으 가져온다.
+            desc_array.append(oneArticle[2])  # 타이틀으 가져온다.
             imgSrc_array.append(oneArticle[4])
 
         # 이미지 저장
@@ -103,14 +103,13 @@ for j in range(len(comIdxs)):
         # file.write(r.content)
         # file.close()
 
-
         data["description"] = desc_array
         data["images"] = imgSrc_array
         # json_data = json.dumps(data)
         # print("data = ",data,"\n")
         # print("=-=-=-=-=-=-=-")
         # print(json_data['images'].__len__())
-        img_idx = 1;
+        img_idx = 1
         # for img_url in data["images"]:
         #     r = requests.get(img_url)
         #     file = open(str(img_idx)+".jpg","wb")
@@ -118,8 +117,5 @@ for j in range(len(comIdxs)):
         #     file.close()
         #     print
         #     break
-
-
-
 
 conn.close()
