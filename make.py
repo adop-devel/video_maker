@@ -44,6 +44,8 @@ def combine_images_with_anchor(image1, image2, anchor_y, anchor_x):
 
 
 def setText(timg, color, alignment, videoHeight, desc, font):
+    print("call setText")
+    print(f'timg -- , color {color} , alignment {alignment} , videoHeight {videoHeight} , desc {desc} , font {font}')
     img_pil = Image.fromarray(timg)
     draw = ImageDraw.Draw(img_pil)
     draw.text((55, videoHeight - 325), desc, font=font, fill=color, align=alignment)
@@ -422,10 +424,16 @@ def insertDataToAtomDB(videoInfoData):
                  article_subtitle, article_landing_url, article_img_path, article_logo_path, site_idx_cps )
                 values 
                 ( %s, 'dotum', 20, '#000000', 'left', 480, %s,
-                 %s, %s, %s, 'edfeee64-69b8-4db2-9f55-e60a4b4ad5c7')
+                 %s, %s, %s, '9ae35627-db96-11ea-8e02-021baddf8c08')
     
             """
-            # site_idx_cps 는 mtb를 위한 것이고 추후 각 매체의 값을 넣도록 수정필요
+
+            # site_idx_cps 는 mtb를 위한 것이고 추후 각 매체의 값을 넣도록 수정필요 , insight.i_site_info 에 있음
+            # mtb 를 위한건 edfeee64-69b8-4db2-9f55-e60a4b4ad5c7
+            # 리더스를 위한건 c2f263d3-889f-11e7-8214-02c31b446301
+            # 미디어 이슈 01211501-5f47-11ea-a87c-02c31b446301
+            # sianphone : 9ae35627-db96-11ea-8e02-021baddf8c08
+
             # base64 값 필요
             desc_encoded = (videoInfoData["description"][i]).encode('utf-8')
             desc_base64ed = base64.b64encode(desc_encoded)
@@ -450,7 +458,7 @@ def insertDataToAtomDB(videoInfoData):
         return True
 
 
-# print(" 이게 먼저 끝나지는 않겠지?")
+print(" 이게 먼저 끝나지는 않겠지?")
 
 
 
@@ -462,24 +470,29 @@ conn = pymysql.connect(
     , db='insight'
     , charset='utf8'
 )
-
+print(3)
 cur = conn.cursor()
 
 sql_getRange = """
             SELECT * FROM insight.i_recommend_video_site WHERE del_yn = 'N'
-            and site_idx = 756
+            and site_idx = 8318
             """
 # site_idx 를 756 으로 하는건 머니투데이만 하려고
 # 추후 각 사이트 매체의 site_idx_cps 를 가져오게 해야한다.
+# 리더스는 site_idx = 3136
+# 미디어 이슈 site_idx = 7065
+# siamphone  site_idx = 8318
 cur.execute(sql_getRange)
 # comIdxs = []
 # siteIdxs = []
 medias = [] # 추천 비디오를 만들 매체
 for i in cur:
+    print(i)
     mediaDic = {}
     mediaDic["com_idx"] = i[1]
     mediaDic["site_idx"] = i[2]
     mediaDic["news_id"] = i[3]
+    mediaDic["country"] = i[6]
     medias.append(mediaDic)
 
     # comIdxs.append(i[1])
@@ -487,21 +500,39 @@ for i in cur:
 
 # print("comIdxs", comIdxs)
 # print("siteIdxs", siteIdxs, '\n')
-
+print(4)
 # 기존에 몇번재 기사까지 영상으로 만들었는지 체크하기 위한 idx 값은 어디서 체해야하는가?
 
 sql_getNewsData = """
             SELECT com_idx, site_idx, title, link, image_url, news_id FROM insight.i_news
             where com_idx = %s and  site_idx = %s 
+            and length(image_url) > 10
+            and length(title) > 10
+            and length(link) > 10
+            order by pub_dt desc
+            limit 62
             """
 # AND news_id >= %s # 이부분을 살려야 한번 만든 기사는 동영상으로 만들지 않는다.
+# order by 를 처음야 news_id 로 했으나 fullscan 을 타서 pub_dt 로 변경
 index = 0
+print(5)
 for j in range(len(medias)):
+    print("for 문")
     # print(medias[j]["com_idx"])
-    # print(" ")
+    print("4 ")
     cur.execute(sql_getNewsData, (medias[j]["com_idx"], medias[j]["site_idx"]
                                   # , medias[j]["news_id"]
                                   ))
+    # 폰트별 지원하는 언어가 달라 나라별 분기처리
+    country_val = medias[j]['country']
+    font_val = ""
+    if (country_val == "KOR"):
+        font_val = "NanumGothic-Bold.ttf"
+    else : # IDN, VN, THA
+        font_val = "Prompt-Light.ttf"
+    print(f"font_val  = {font_val}")
+
+
 
     articleRows = cur.fetchall()
 
@@ -536,12 +567,13 @@ for j in range(len(medias)):
     for oneBuffer in articleVideoBufferArray:
         # print(oneBuffer)
         data = {
-            "font": "NanumGothic-Bold.ttf",
+            "font": font_val,
             "font_size": "18",
             "font_color": "#FFFFFF",
             "alignment": "left",
             # 여기서 매체 사이트의 url 을 넣으면 된다.
         }
+
         # com_idx, site_idx, title, link, image_url, news_id
         comIdx_array = []
         siteIdx_array = []
