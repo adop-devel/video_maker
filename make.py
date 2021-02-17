@@ -224,8 +224,10 @@ def makeArticleVideo(data):
     #     if len(description[i]) >= 35 :
     #         description[i] = description[i][0:35] + '....'
     fontType = vInfoData['font']
+    print(fontType)
 
     fontpath = "%sfonts/%s" % (VIDEO_MAKER_PATH, fontType)
+    print(fontpath)
     font = ImageFont.truetype(fontpath, int(vInfoData['font_size']))
 
     # 비디오 만들기 (사진이동 + fadein/out)
